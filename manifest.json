@@ -1,0 +1,9 @@
+{
+  "name": "Счета мастера",
+  "short_name": "Счета",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#101418",
+  "theme_color": "#151b22",
+  "icons": []
+}

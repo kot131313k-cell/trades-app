@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>tests</title></head>
+<body>
+<pre id="out">running...</pre>
+<script src="storage.js"></script>
+<script src="profiles.js"></script>
+<script>
+(function () {
+  var out = [];
+  var passed = 0, failed = 0;
+  function ok(cond, name, extra) {
+    if (cond) { passed++; out.push("PASS " + name); }
+    else { failed++; out.push("FAIL " + name + (extra ? " -- " + extra : "")); }
+  }
+  try {
+    // 1. Суммы
+    var t = Store.calcTotal([{ desc: "a", amount: 100000 }, { desc: "b", amount: 50250 }], 2550);
+    ok(t.subtotal === 150250 && t.discount === 2550 && t.total === 147700, "sum-discount", JSON.stringify(t));
+    var t2 = Store.calcTotal([{ desc: "a", amount: 1000 }], 99999);
+    ok(t2.total === 0 && t2.discount === 1000, "discount-cap", JSON.stringify(t2));
+    ok(Store.parseMoneyToKopecks("1 500,50") === 150050, "parse-spaces-comma");
+    ok(isNaN(Store.parseMoneyToKopecks("abc")), "parse-garbage");
+    ok(isNaN(Store.parseMoneyToKopecks("")), "parse-empty");
+
+    // 2. Просрочка
+    var inv = { status: "issued", dueDate: "2026-01-01", total: 1000, payments: [] };
+    ok(Store.isOverdue(inv, "2026-01-02") === true, "overdue-yesterday");
+    ok(Store.isOverdue(inv, "2026-01-01") === false, "overdue-boundary");
+    ok(Store.displayStatus(inv, "2026-01-02") === "Просрочен", "status-overdue");
+    ok(Store.displayStatus({ status: "draft", dueDate: "2020-01-01", total: 1, payments: [] }, "2026-01-01") === "Черновик", "draft-not-overdue");
+
+    // 3. Номера
+    var db = { clients: [], jobs: [], licenses: [], invoices: [{ number: "2000-001" }], seq: {} };
+    var n1 = Store.nextInvoiceNumber(db);
+    var db2 = { clients: [], jobs: [], licenses: [], invoices: [{ number: n1 }, { number: "2000-001" }], seq: db.seq };
+    var n2 = Store.nextInvoiceNumber(db2);
+    ok(n1 !== n2 && /^\d{4}-\d{3}$/.test(n1), "invoice-numbers", n1 + " vs " + n2);
+
+    // 4. End-to-end через Store
+    Store.save({ clients: [], jobs: [], invoices: [], licenses: [], seq: {} });
+    var rc = Store.saveClient({ name: "Иван", phone: "+79990001122", address: "Ленина 1", note: "" });
+    ok(!rc.errors && !!rc.client.id, "client-save");
+    var bad = Store.saveClient({ name: "", phone: "" });
+    ok(!!(bad.errors && bad.errors.name), "client-empty-rejected");
+    var rj = Store.saveJob({ clientId: rc.client.id, date: "2026-09-22", desc: "Замена смесителя", priceKop: 400000, materials: [{ name: "Кран", sellKop: 150000 }] });
+    ok(!rj.errors, "job-save");
+    var rNeg = Store.saveJob({ clientId: rc.client.id, date: "2026-09-22", desc: "x", priceKop: -5 });
+    ok(!!(rNeg.errors && rNeg.errors.price), "job-negative-rejected");
+    var ri = Store.saveInvoice({ clientId: rc.client.id, lines: [{ desc: "Работа", amount: 400000 }, { desc: "Кран", amount: 150000 }], discountKop: 50000, dueDate: "2026-09-29" });
+    ok(!ri.errors && ri.invoice.total === 500000, "invoice-total", JSON.stringify(ri.invoice && ri.invoice.total));
+    Store.saveJob({ id: rj.job.id, clientId: rc.client.id, date: "2026-09-22", desc: "Замена смесителя", priceKop: 999999 });
+    ok(Store.getInvoice(ri.invoice.id).total === 500000, "invoice-immutable");
+    Store.addPayment(ri.invoice.id, 200000, "2026-09-23", "перевод");
+    ok(Store.invoiceBalance(Store.getInvoice(ri.invoice.id)) === 300000, "partial-payment");
+    var over = Store.addPayment(ri.invoice.id, 999999999, "2026-09-23", "");
+    ok(!!over.errors, "overpay-rejected");
+    Store.addPayment(ri.invoice.id, 300000, "2026-09-24", "наличные");
+    var paidInv = Store.getInvoice(ri.invoice.id);
+    ok(paidInv.status === "paid" && Store.listInvoices("unpaid").length === 0, "paid-leaves-debts");
+    var rl = Store.saveLicense({ title: "Допуск", number: "123", issuer: "УЦ", expiresAt: "2026-09-25" });
+    ok(!rl.errors && Store.licenseState(rl.license, "2026-09-22") === "soon", "license-soon");
+    ok(Store.licenseState(rl.license, "2026-09-26") === "expired", "license-expired");
+
+    // 5. Профили — данными, без ветвлений
+    ok(!!(AppProfiles.PROFILES.plumber && AppProfiles.PROFILES.electrician), "profiles-present");
+    ok(AppProfiles.PROFILES.plumber.mainButton !== AppProfiles.PROFILES.electrician.mainButton, "profiles-differ");
+  } catch (e) {
+    failed++;
+    out.push("FAIL exception: " + (e && e.message) + " | " + (e && e.stack));
+  }
+  out.push("TOTAL " + passed + " passed, " + failed + " failed");
+  document.getElementById("out").textContent = out.join("\n");
+})();
+</script>
+</body>
+</html>

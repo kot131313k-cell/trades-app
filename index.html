@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#151b22" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Счета мастера</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top no-print">
+    <h1 id="appTitle">Счета мастера</h1>
+    <div class="profile-switch" role="group" aria-label="Профиль">
+      <button id="btnPlumber" type="button">Сантехник</button>
+      <button id="btnElectrician" type="button">Электрик</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="screen-home" class="screen"></section>
+    <section id="screen-clients" class="screen"></section>
+    <section id="screen-client" class="screen"></section>
+    <section id="screen-invoices" class="screen"></section>
+    <section id="screen-invoice" class="screen"></section>
+    <section id="screen-licenses" class="screen"></section>
+  </main>
+
+  <nav class="bottom no-print" aria-label="Навигация">
+    <button data-nav="home" type="button"><span class="ico">🏠</span>Главная</button>
+    <button data-nav="clients" type="button"><span class="ico">👥</span>Клиенты</button>
+    <button data-nav="invoices" type="button"><span class="ico">🧾</span>Счета</button>
+    <button data-nav="licenses" type="button"><span class="ico">📜</span>Допуски</button>
+  </nav>
+
+  <div id="modalBack" class="modal-back no-print">
+    <div class="modal" id="modalBox" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="profiles.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    }
+  </script>
+</body>
+</html>
